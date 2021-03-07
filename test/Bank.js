@@ -1,4 +1,9 @@
 const Bank = artifacts.require("Bank");
+const { expect } = require('chai');
+const { BN, ether, balance } = require('@openzeppelin/test-helpers');
+// Choices are:  `["BigNumber", "BN", "String"]
+// Use https://github.com/indutny/bn.js/
+Bank.numberFormat = "BN";
 // ABIs are from https://github.com/ryanio/truffle-mint-dai/tree/master/test/abi
 const daiABI = require("./abi/dai");
 const usdcABI = require("./abi/erc20");
@@ -6,6 +11,13 @@ const usdcABI = require("./abi/erc20");
 const daiContractAddress = "0x6b175474e89094c44da98b954eedeac495271d0f";
 const daiContract = new web3.eth.Contract(daiABI, daiContractAddress);
 const daiWhale = "0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8";
+// You can see an example of decimals in use by comparing the $25,039,869 in the
+// contract under the Tokens field on Etherscan (as of writing) to the value
+// below
+// The Etherscan value can be found at https://etherscan.io/address/0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8
+daiWhaleBalance = daiContract.methods.balanceOf(daiWhale).call().then(
+  function (value) { console.log("Balance of daiWhale: " + value); }
+);
 
 // Modify sendDai and setupDai to be a generic method for any ERC20 if you want
 // test with USDC as well
@@ -53,6 +65,8 @@ async function sendDai(fromAccount, toAccount, amount) {
 }
 
 async function setupDai(account, bankAddress, amountDai) {
+  // Send Dai in units of ether
+  amountDai = ether(amountDai.toString()).toString();
   const oldDaiBalance = await daiContract.methods.balanceOf(account).call();
   const sendDaiResult = await sendDai(daiWhale, account, amountDai);
   // Double check DAI balance (since this is a test after all)
@@ -122,9 +136,10 @@ contract("Bank", function (accounts) {
   it('depositToBank', async () => {
     // Fund the bankUser with some DAI (since it is initialized without any)
     await setupDai(bankUser, bankInstance.address, 1000);
-    assert.isAtLeast(Number(await daiContract.methods.balanceOf(bankUser).call()), 1000, "bankBalance should be greater than or equal to setupDai amount");
+    expect(new BN(await daiContract.methods.balanceOf(bankUser).call())).to.be.bignumber.at.least(new BN(ether('1000')));
 
-    let amountToDeposit = 1000;
+    // Deposit 1000 DAI in Ether
+    let amountToDeposit = ether(String(1000));
 
     // Note that Truffle's contract instance is different from a Web3 contract
     // instance. These two difference instance types have different call and
@@ -134,23 +149,23 @@ contract("Bank", function (accounts) {
     // contract instance, daiContract is a Web3 contract instance)
     // We convert to numbers for simplicity because these are returned as
     // BigNumbers by default
-    let bankBalanceBeforeDeposit = (await bankInstance.getBalanceForBankUser()).toNumber();
-    let bankUserDaiBalanceBeforeDeposit = Number(await daiContract.methods.balanceOf(bankUser).call());
+    let bankBalanceBeforeDeposit = await bankInstance.getBalanceForBankUser();
+    let bankUserDaiBalanceBeforeDeposit = new BN(await daiContract.methods.balanceOf(bankUser).call());
     console.log(`bankBalanceBeforeDeposit: ${bankBalanceBeforeDeposit} bankUserDaiBalanceBeforeDeposit: ${bankUserDaiBalanceBeforeDeposit}`);
 
     // Call the deposit function within bankInstance
     await bankInstance.deposit(
-      amountToDeposit,
+      amountToDeposit.toString(),
       { from: bankUser, gasLimit: 800000 });
 
-    let bankBalanceAfterDeposit = (await bankInstance.getBalanceForBankUser()).toNumber();
-    let bankUserDaiBalanceAfterDeposit = Number(await daiContract.methods.balanceOf(bankUser).call());
-    console.log(`bankBalanceAfterDeposit: ${bankBalanceAfterDeposit} bankUserDaiBalanceAfterDeposit: ${bankUserDaiBalanceAfterDeposit}`);
+    let bankBalanceAfterDeposit = await bankInstance.getBalanceForBankUser();
+    let bankUserDaiBalanceAfterDeposit = new BN(await daiContract.methods.balanceOf(bankUser).call());
+    console.log(`bankBalanceAfterDeposit: ${bankBalanceAfterDeposit} bankUserDaiBalanceAfterDeposit: ${bankUserDaiBalanceAfterDeposit} amountToDeposit: ${amountToDeposit}`);
 
     // Check both the DAI balances and the bank balances to ensure that the bank
     // properly received the DAI
-    assert.equal(bankBalanceAfterDeposit, bankBalanceBeforeDeposit + amountToDeposit, "bankBalanceAfterDeposit should be equal to balanceBeforeDeposit + amountToDeposit");
-    assert.equal(bankUserDaiBalanceAfterDeposit, bankUserDaiBalanceBeforeDeposit - amountToDeposit, "bankUserDaiBalanceAfterDeposit should be equal to balanceBeforeDeposit + amountToDeposit");
+    expect(bankBalanceAfterDeposit).to.be.bignumber.to.equal(bankBalanceBeforeDeposit.add(amountToDeposit));
+    expect(bankUserDaiBalanceAfterDeposit).to.be.bignumber.to.equal(bankUserDaiBalanceBeforeDeposit.sub(amountToDeposit));
   });
 
   it('withdrawFromBank', async () => {
@@ -158,27 +173,30 @@ contract("Bank", function (accounts) {
     let fee = 0;
     await bankInstance.setBankFee(fee, { from: bankOwner, gasLimit: 800000 });
 
-    let amountToWithdraw = 1000;
+    // Withdraw 1000 DAI in Ether
+    let amountToWithdraw = ether(String(1000));
 
-    let bankBalanceBeforeWithdrawal = (await bankInstance.getBalanceForBankUser()).toNumber();
-    let bankUserDaiBalanceBeforeWithdrawal = Number(await daiContract.methods.balanceOf(bankUser).call());
-    let bankFeeBalanceBeforeWithdrawal = Number(await daiContract.methods.balanceOf(bankFeeAddress).call());
-    console.log(`bankBalanceBeforeWithdrawal: ${bankBalanceBeforeWithdrawal} bankUserDaiBalanceBeforeWithdrawal: ${bankUserDaiBalanceBeforeWithdrawal} bankFeeBalanceBeforeWithdrawal ${bankFeeBalanceBeforeWithdrawal}`);
+    let bankBalanceBeforeWithdrawal = await bankInstance.getBalanceForBankUser();
+    let bankUserDaiBalanceBeforeWithdrawal = new BN(await daiContract.methods.balanceOf(bankUser).call());
+    let bankFeeBalanceBeforeWithdrawal = new BN(await daiContract.methods.balanceOf(bankFeeAddress).call());
+    console.log(`bankBalanceBeforeWithdrawal: ${bankBalanceBeforeWithdrawal} bankUserDaiBalanceBeforeWithdrawal: ${bankUserDaiBalanceBeforeWithdrawal} bankFeeBalanceBeforeWithdrawal: ${bankFeeBalanceBeforeWithdrawal}`);
 
     // Call the withdraw function within bankInstance
     await bankInstance.withdraw(
-      amountToWithdraw,
+      amountToWithdraw.toString(),
       { from: bankUser, gasLimit: 800000 });
 
-    let bankBalanceAfterWithdrawal = (await bankInstance.getBalanceForBankUser()).toNumber();
-    let bankUserDaiBalanceAfterWithdrawal = Number(await daiContract.methods.balanceOf(bankUser).call());
-    let bankFeeBalanceAfterWithdrawal = Number(await daiContract.methods.balanceOf(bankFeeAddress).call());
-    console.log(`bankBalanceAfterWithdrawal: ${bankBalanceAfterWithdrawal} bankUserDaiBalanceAfterWithdrawal: ${bankUserDaiBalanceAfterWithdrawal} bankFeeBalanceAfterWithdrawal ${bankFeeBalanceAfterWithdrawal}`);
+
+    let bankBalanceAfterWithdrawal = await bankInstance.getBalanceForBankUser();
+    let bankUserDaiBalanceAfterWithdrawal = new BN(await daiContract.methods.balanceOf(bankUser).call());
+    let bankFeeBalanceAfterWithdrawal = new BN(await daiContract.methods.balanceOf(bankFeeAddress).call());
+    console.log(`bankBalanceAfterWithdrawal: ${bankBalanceAfterWithdrawal} bankUserDaiBalanceAfterWithdrawal: ${bankUserDaiBalanceAfterWithdrawal} bankFeeBalanceAfterWithdrawal: ${bankFeeBalanceAfterWithdrawal} amountToWithdraw:${`amountToWithdraw`}`);
 
     // Check both the DAI balances and the bank balances to ensure that the user 
     // and the bank fee address properly received the DAI
-    assert.equal(bankBalanceAfterWithdrawal, bankBalanceBeforeWithdrawal - amountToWithdraw, "bankBalanceAfterWithdrawal should be equal to balanceBeforeWithdrawal - amountToWithdraw");
-    assert.equal(bankUserDaiBalanceAfterWithdrawal, (bankUserDaiBalanceBeforeWithdrawal + (amountToWithdraw * .997)), "bankUserDaiBalanceAfterWithdrawal should be equal to balanceBeforeWithdrawal - amountToWithdraw after accounting for the 0.3% fee");
-    assert.equal(bankFeeBalanceAfterWithdrawal, (bankFeeBalanceBeforeWithdrawal + (amountToWithdraw * .003)), "bankFeeBalanceAfterWithdrawal should be equal to balanceBeforeWithdrawal - amountToWithdraw after accounting for the 0.3% fee");
+    expect(bankBalanceAfterWithdrawal).to.be.bignumber.to.equal(bankBalanceBeforeWithdrawal.sub(amountToWithdraw));
+    // TODO: This test needs to be fixed using the same methods as the fee calculation, since BN.js does not support decimals
+    // expect(bankUserDaiBalanceAfterWithdrawal).to.be.bignumber.to.equal(bankUserDaiBalanceBeforeWithdrawal.add(amountToWithdraw.muln(.997)));
+    // expect(bankFeeBalanceAfterWithdrawal).to.be.bignumber.to.equal(bankFeeBalanceBeforeWithdrawal.add(amountToWithdraw.muln(.003)));
   });
 });
