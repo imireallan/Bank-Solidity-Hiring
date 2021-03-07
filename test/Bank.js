@@ -214,7 +214,7 @@ contract("Bank", function (accounts) {
     expect(bankFee[0]).to.be.bignumber.to.equal(new BN(997));
     expect(bankFee[1]).to.be.bignumber.to.equal(new BN(3));
 
-    let bankFee = await bankInstance.calculateBankFee.call(String(1000000000000000000000));
+    bankFee = await bankInstance.calculateBankFee.call(String(1000000000000000000000));
     expect(bankFee[0]).to.be.bignumber.to.equal(new BN(997000000000000000000));
     expect(bankFee[1]).to.be.bignumber.to.equal(new BN(3000000000000000000));
 
