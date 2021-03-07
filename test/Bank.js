@@ -199,4 +199,24 @@ contract("Bank", function (accounts) {
     // expect(bankUserDaiBalanceAfterWithdrawal).to.be.bignumber.to.equal(bankUserDaiBalanceBeforeWithdrawal.add(amountToWithdraw.muln(.997)));
     // expect(bankFeeBalanceAfterWithdrawal).to.be.bignumber.to.equal(bankFeeBalanceBeforeWithdrawal.add(amountToWithdraw.muln(.003)));
   });
+
+  it('calculateBankFee', async () => {
+    // If you try to use destructing on the tuple, it will fail with "TypeError: (intermediate value) is not iterable"
+    // For example, this will not work:
+    // let [amountToUser, amountToBank] = await bankInstance.calculateBankFee.call(String(1000), String(0));
+    // Instead, you need to access the object directly (yes, this took forever to figure out): https://github.com/sidorares/node-mysql2/issues/782#issuecomment-445460063
+    // For reference, if you need to access the contents of bankFee or any other returned object, you can use:
+    // const util = require('util');
+    // let bankFee = await bankInstance.calculateBankFee.call(String(1000));
+    // console.log(util.inspect(bankFee, { depth: null }))
+
+    let bankFee = await bankInstance.calculateBankFee.call(String(1000));
+    expect(bankFee[0]).to.be.bignumber.to.equal(new BN(997));
+    expect(bankFee[1]).to.be.bignumber.to.equal(new BN(3));
+
+    let bankFee = await bankInstance.calculateBankFee.call(String(1000000000000000000000));
+    expect(bankFee[0]).to.be.bignumber.to.equal(new BN(997000000000000000000));
+    expect(bankFee[1]).to.be.bignumber.to.equal(new BN(3000000000000000000));
+
+  });
 });
