@@ -5,7 +5,7 @@
   "author": "Will Papper and Syndicate Inc.",
   "license": "MIT",
   "scripts": {
-    "start": "ganache-cli -f https://cloudflare-eth.com/ -m \"priority crane honey mule favorite stumble between coast cool butter meat surround\" -i 2020 --secure --unlock \"0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643\" --unlock \"0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3\" -u 0 -u 1 -u 2 -u 3",
+    "start": "ganache-cli -f https://cloudflare-eth.com/ -m \"priority crane honey mule favorite stumble between coast cool butter meat surround\" -i 2020 --secure --unlock \"0xF977814e90dA44bFA03b6295A0616a897441aceC\" --unlock \"0x3dfd23A6c5E8BbcFc9581d2E864a68feb6a076d3\" -u 0 -u 1 -u 2 -u 3",
     "test": "truffle test"
   },
   "devDependencies": {
