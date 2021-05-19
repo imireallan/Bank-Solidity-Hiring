@@ -3,6 +3,8 @@
 pragma solidity >=0.6.0 <0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
 
 /// @title A sample bank contract
 /// @author Will Papper and Syndicate Inc.
@@ -15,7 +17,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /// within Bank.js), and that the user of the bank is not the owner of the Bank
 /// contract (e.g. the user of the bank is accounts[1] within Bank.js, not
 /// accounts[0]).
-contract Bank {
+contract Bank is Ownable {
+    using SafeMath for uint256;
     // The contract address for DAI
     address public constant DAI_ADDRESS =
         0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -26,14 +29,15 @@ contract Bank {
     address public constant BANK_FEE_ADDRESS =
         0xcD0Bf0039d0F09CF93f9a05fB57C2328F6D525A3;
 
-    uint256 balance = 0;
+
+    mapping (address => uint256) private _balances;
 
     // The bank should take a fee of 0.3% on every withdrawal. For example, if a
     // user is withdrawing 1000 DAI, the bank should receive 3 DAI. If a user is
     // withdrawing 100 DAI, the bank should receive .3 DAI. The same should hold
     // true for USDC as well.
     // The bankFee is set using setBankFee();
-    uint256 bankFee = 0;
+    uint256 public bankFee = 0;
 
     // You should change this value to USDC_ADDRESS if you want to set the bank
     // to use USDC.
@@ -47,11 +51,20 @@ contract Bank {
         IERC20 erc20 = IERC20(ERC20_ADDRESS);
 
         // Transfer funds from the user to the bank
+        
+        // validate the amout is greater than 0
+        // validate the account has the amount to withdraw 
+        
+        require(amount > 0);
+
+
         erc20.transferFrom(msg.sender, address(this), amount);
 
         // Increase the balance by the deposit amount and return the balance
-        balance += amount;
-        return balance;
+        // balance += amount;
+        // _balances[msg.sender] += amount;
+        _balances[msg.sender] = _balances[msg.sender].add(amount);
+        return _balances[msg.sender];
     }
 
     /// @notice Process a withdrawal from the bank
@@ -61,19 +74,28 @@ contract Bank {
     function withdraw(uint256 amount) public returns (uint256) {
         // Initialize the ERC20 for USDC or DAI
         IERC20 erc20 = IERC20(ERC20_ADDRESS);
+        
+        // validate the amout is greater than 0
+        // validate the account has the amount to withdraw 
+        
+        require(amount > 0 && _balances[msg.sender] >= amount);
 
         // Calculate the fee that is owed to the bank
         (uint256 amountToUser, uint256 amountToBank) = calculateBankFee(amount);
 
         erc20.transfer(msg.sender, amountToUser);
         // Decrease the balance by the amount sent to the user
-        balance -= amountToUser;
+        // balance -= amountToUser;
+        // _balances[msg.sender] -= amountToUser;
+        _balances[msg.sender] = _balances[msg.sender].sub(amountToUser);
 
         erc20.transfer(BANK_FEE_ADDRESS, amountToBank);
         // Decrease the balance by the amount sent to the bank
-        balance -= amountToBank;
+        // balance -= amountToBank;
+        // _balances[msg.sender] -= amountToBank;
+        _balances[msg.sender] = _balances[msg.sender].sub(amountToBank);
 
-        return balance;
+        return _balances[msg.sender];
     }
 
     /// @notice Calculate the fee that should go to the bank
@@ -85,22 +107,33 @@ contract Bank {
         returns (uint256, uint256)
     {
         // TODO: Implement the 0.3% fee to the bank here
-        uint256 amountToBank = amount * bankFee;
-        uint256 amountToUser = amount - amountToBank;
-        return (amountToUser, amountToBank);
+        // (amount / 1000) * 3
+
+        // the default decimal places for erc20Tokens
+        uint8 decimals = 18;
+
+        uint256 amountInWei = amount.mul(10**uint256(decimals));
+        uint256 fee = 3 * (10**uint256(decimals));
+        uint256 percentage = 1000 * (10**uint256(decimals));
+
+        uint256 amountToBank = amountInWei.mul(fee).div(percentage);
+        uint256 amountToUser = amountInWei.sub(amountToBank);
+
+        // convering back the amountToUser and amountToBank
+        return (amountToUser.div(10**uint256(decimals)), amountToBank.div(10**uint256(decimals)));
     }
 
     /// @notice Set the fee that the bank takes
     /// @param fee The fee that bankFee should be set to
     /// @return bankFee The new value of the bank fee
-    function setBankFee(uint256 fee) public returns (uint256) {
+    function setBankFee(uint256 fee) public onlyOwner returns (uint256) {
         bankFee = fee;
         return bankFee;
     }
 
     /// @notice Get the user's bank balance
     /// @return balance The balance of the user
-    function getBalanceForBankUser() public view returns (uint256) {
-        return balance;
+    function getBalanceForBankUser(address _owner) public view returns (uint256) {
+        return _balances[_owner];
     }
 }
