@@ -63,6 +63,8 @@ contract Bank is Ownable {
         // Increase the balance by the deposit amount and return the balance
         // balance += amount;
         // _balances[msg.sender] += amount;
+
+        //  Does Solc ^0.8.0 have automatic under/overflow checks?
         _balances[msg.sender] = _balances[msg.sender].add(amount);
         return _balances[msg.sender];
     }
@@ -107,7 +109,6 @@ contract Bank is Ownable {
         returns (uint256, uint256)
     {
         // TODO: Implement the 0.3% fee to the bank here
-        // (amount / 1000) * 3
 
         // the default decimal places for erc20Tokens
         uint8 decimals = 18;
