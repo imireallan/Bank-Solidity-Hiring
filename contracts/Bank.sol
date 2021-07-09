@@ -110,18 +110,15 @@ contract Bank is Ownable {
     {
         // TODO: Implement the 0.3% fee to the bank here
 
-        // the default decimal places for erc20Tokens
-        uint8 decimals = 18;
-
-        uint256 amountInWei = amount.mul(10**uint256(decimals));
-        uint256 fee = 3 * (10**uint256(decimals));
-        uint256 percentage = 1000 * (10**uint256(decimals));
+        uint256 amountInWei = amount.mul(10**uint256(18));
+        uint256 fee = 3 * (10**uint256(18));
+        uint256 percentage = 1000 * (10**uint256(18));
 
         uint256 amountToBank = amountInWei.mul(fee).div(percentage);
         uint256 amountToUser = amountInWei.sub(amountToBank);
 
         // convering back the amountToUser and amountToBank
-        return (amountToUser.div(10**uint256(decimals)), amountToBank.div(10**uint256(decimals)));
+        return (amountToUser.div(10**uint256(18)), amountToBank.div(10**uint256(18)));
     }
 
     /// @notice Set the fee that the bank takes

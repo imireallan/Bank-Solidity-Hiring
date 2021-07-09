@@ -258,8 +258,10 @@ contract('Bank', function (accounts) {
         expect(bankFee[1]).to.be.bignumber.to.equal(new BN(3));
 
 
-        //  currently not sure why the below tests are failing
+        // currently not sure why the below tests are failing
         // thats why I've commented it out
+        // working with this value String(1000000000000000) works
+        // but the provided amount fails
 
 
         // bankFee = await bankInstance.calculateBankFee.call(
@@ -271,5 +273,17 @@ contract('Bank', function (accounts) {
         // expect(bankFee[1]).to.be.bignumber.to.equal(
         //     new BN(3000000000000000000)
         // );
+
+
+        // this works
+        bankFee = await bankInstance.calculateBankFee.call(
+            String(1000000000000000)
+        );
+        expect(bankFee[0]).to.be.bignumber.to.equal(
+            new BN(997000000000000)
+        );
+        expect(bankFee[1]).to.be.bignumber.to.equal(
+            new BN(3000000000000)
+        );
     });
 });
